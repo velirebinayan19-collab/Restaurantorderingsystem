@@ -3,18 +3,16 @@ from database.db_connect import get_db_connection
 
 order_bp = Blueprint('order', __name__, url_prefix='/orders')
 
-# Helper function to initialize session cart
 def get_cart():
     if 'cart' not in session:
         session['cart'] = {}
     return session['cart']
 
-# Root redirect /orders -> /orders/cart
 @order_bp.route('/')
 def index():
     return redirect(url_for('order.view_cart'))
 
-# Lab 9 & 10: Order Cart Interface
+# View Cart
 @order_bp.route('/cart', methods=['GET'])
 def view_cart():
     conn = get_db_connection()
@@ -43,19 +41,17 @@ def view_cart():
         total_quantity=total_quantity
     )
 
-# Feature 1: Add Item to Cart (With Lab 10 Validation)
+# Add Item to Cart
 @order_bp.route('/cart/add', methods=['POST'])
 def add_to_cart():
     item_id_raw = request.form.get('item_id')
     quantity_raw = request.form.get('quantity', 1)
     category_id = request.form.get('category_id')
 
-    # Rule: Check if item_id and quantity are provided
     if not item_id_raw:
         flash('Validation Error: Please select a valid menu item.', 'danger')
         return redirect(url_for('order.view_cart', category_id=category_id))
 
-    # Rule: Validate quantity numeric conversion and positive value
     try:
         quantity = int(quantity_raw)
         if quantity <= 0:
@@ -66,18 +62,16 @@ def add_to_cart():
         return redirect(url_for('order.view_cart', category_id=category_id))
 
     conn = get_db_connection()
-    # Rule: Invalid Menu Item & Availability Check
     item = conn.execute("SELECT id, name, price FROM items WHERE id = ?", (item_id_raw,)).fetchone()
     conn.close()
 
     if not item:
-        flash('Validation Error: Selected menu item does not exist or is unavailable.', 'danger')
+        flash('Validation Error: Selected menu item does not exist.', 'danger')
         return redirect(url_for('order.view_cart', category_id=category_id))
 
     cart = get_cart()
     item_id_str = str(item['id'])
 
-    # Rule: Duplicate Item Handling (consolidate quantity)
     if item_id_str in cart:
         cart[item_id_str]['quantity'] += quantity
     else:
@@ -92,12 +86,11 @@ def add_to_cart():
     flash(f'Added {item["name"]} (x{quantity}) to cart.', 'success')
     return redirect(url_for('order.view_cart', category_id=category_id))
 
-# Feature 2 & 3: Update Quantity / Remove Item (With Lab 10 Validation)
+# Cart Management Actions
 @order_bp.route('/cart/update', methods=['POST'])
 def update_cart():
     item_id_str = str(request.form.get('item_id'))
     action = request.form.get('action')
-    
     cart = get_cart()
 
     if item_id_str in cart:
@@ -107,65 +100,50 @@ def update_cart():
         elif action == 'update':
             try:
                 new_qty = int(request.form.get('quantity', 1))
-                # Rule: Zero or Negative Quantity removes or flags error
                 if new_qty > 0:
                     cart[item_id_str]['quantity'] = new_qty
-                    flash('Cart updated successfully.', 'success')
+                    flash('Cart updated.', 'success')
                 else:
                     del cart[item_id_str]
-                    flash('Item removed because quantity was set to zero or negative.', 'info')
+                    flash('Item removed from cart.', 'info')
             except (ValueError, TypeError):
-                flash('Validation Error: Invalid quantity entered.', 'danger')
-        
+                flash('Invalid quantity.', 'danger')
         session.modified = True
 
     return redirect(url_for('order.view_cart'))
 
-# Feature 5: Clear Cart
 @order_bp.route('/cart/clear', methods=['POST'])
 def clear_cart():
     session.pop('cart', None)
     flash('Cart cleared.', 'info')
     return redirect(url_for('order.view_cart'))
 
-# Finalize Order (With Lab 10 Server-Side Checkout Validation)
+# Lab 11: Checkout & Persistence
 @order_bp.route('/cart/checkout', methods=['POST'])
 def checkout():
     customer_id = request.form.get('customer_id')
     cart = get_cart()
 
-    # Rule 1: Empty Order Validation
     if not cart or len(cart) == 0:
-        flash('Validation Error: Cannot place an empty order. Please add items to your cart.', 'danger')
+        flash('Cannot place an empty order.', 'danger')
         return redirect(url_for('order.view_cart'))
 
-    # Rule 2: Invalid Customer Validation
     if not customer_id:
-        flash('Validation Error: Please select a valid customer.', 'danger')
+        flash('Please select a valid customer.', 'danger')
         return redirect(url_for('order.view_cart'))
 
     conn = get_db_connection()
     try:
         customer = conn.execute("SELECT id FROM customers WHERE id = ?", (customer_id,)).fetchone()
         if not customer:
-            flash('Validation Error: Selected customer does not exist in the database.', 'danger')
+            flash('Selected customer does not exist.', 'danger')
             return redirect(url_for('order.view_cart'))
 
-        # Rule 3 & 4: Validate items, prices, and non-zero positive quantities before checkout
         validated_items = []
         for item_id_str, cart_item in list(cart.items()):
             db_item = conn.execute("SELECT id, price FROM items WHERE id = ?", (cart_item['id'],)).fetchone()
-            
-            # Invalid item or item removed from database
             if not db_item:
-                flash(f'Validation Error: Item "{cart_item["name"]}" is no longer available.', 'danger')
-                del cart[item_id_str]
-                session.modified = True
-                return redirect(url_for('order.view_cart'))
-
-            # Check quantity sanity
-            if cart_item['quantity'] <= 0:
-                flash(f'Validation Error: Invalid quantity for item "{cart_item["name"]}".', 'danger')
+                flash(f'Item "{cart_item["name"]}" is no longer available.', 'danger')
                 return redirect(url_for('order.view_cart'))
 
             validated_items.append({
@@ -174,32 +152,95 @@ def checkout():
                 'quantity': cart_item['quantity']
             })
 
-        subtotal = sum(i['price'] * i['quantity'] for i in validated_items)
+        total_amount = sum(i['price'] * i['quantity'] for i in validated_items)
+        initial_status = 'PENDING'
 
-        # Process valid order into database
         cursor = conn.cursor()
         cursor.execute(
-            "INSERT INTO orders (customer_id, order_date, total_amount, status) VALUES (?, datetime('now'), ?, 'Pending')",
-            (customer_id, subtotal)
+            """INSERT INTO orders (customer_id, order_date, total_amount, status) 
+               VALUES (?, datetime('now', 'localtime'), ?, ?)""",
+            (customer_id, total_amount, initial_status)
         )
         order_id = cursor.lastrowid
 
-        # Insert item details into order_items table if applicable
         for item in validated_items:
             cursor.execute(
-                "INSERT INTO order_items (order_id, item_id, quantity, price) VALUES (?, ?, ?, ?)",
+                """INSERT INTO order_items (order_id, item_id, quantity, price) 
+                   VALUES (?, ?, ?, ?)""",
                 (order_id, item['id'], item['quantity'], item['price'])
             )
 
-        # Clear cart on successful transaction
-        session.pop('cart', None)
         conn.commit()
-        flash(f'Order #{order_id} validated and placed successfully! Subtotal: ₱{subtotal:.2f}', 'success')
-        return redirect(url_for('customer.profile', id=customer_id))
+        session.pop('cart', None)
+        flash(f'Order #{order_id} placed successfully! Initial Status: {initial_status}', 'success')
+        return redirect(url_for('order.track_orders'))
 
     except Exception as e:
         conn.rollback()
-        flash(f'An unexpected database error occurred: {str(e)}', 'danger')
+        flash(f'Database error placing order: {str(e)}', 'danger')
         return redirect(url_for('order.view_cart'))
     finally:
         conn.close()
+
+# Lab 11: Order Tracker
+@order_bp.route('/track', methods=['GET'])
+def track_orders():
+    conn = get_db_connection()
+    orders = conn.execute("""
+        SELECT o.id, o.order_date, o.total_amount, o.status, c.name as customer_name
+        FROM orders o
+        JOIN customers c ON o.customer_id = c.id
+        ORDER BY o.id DESC
+    """).fetchall()
+    conn.close()
+    return render_template('orders/track.html', orders=orders)
+
+# Status Update Handler (Used by Order Tracker & KDS)
+@order_bp.route('/update-status/<int:order_id>', methods=['POST'])
+def update_status(order_id):
+    new_status = request.form.get('status')
+    valid_statuses = ['PENDING', 'SENT TO KITCHEN', 'PREPARING', 'READY', 'COMPLETED', 'PAID']
+    
+    if new_status in valid_statuses:
+        conn = get_db_connection()
+        conn.execute("UPDATE orders SET status = ? WHERE id = ?", (new_status, order_id))
+        conn.commit()
+        conn.close()
+        flash(f'Order #{order_id} status updated to: {new_status}', 'info')
+    else:
+        flash('Invalid status selected.', 'danger')
+        
+    return redirect(request.referrer or url_for('order.track_orders'))
+
+# Laboratory 12: Kitchen Display System (KDS) Route
+@order_bp.route('/kds', methods=['GET'])
+def kitchen_display():
+    conn = get_db_connection()
+    
+    orders_rows = conn.execute("""
+        SELECT o.id, o.order_date, o.status, c.name as customer_name
+        FROM orders o
+        JOIN customers c ON o.customer_id = c.id
+        WHERE o.status IN ('PENDING', 'SENT TO KITCHEN', 'PREPARING', 'READY')
+        ORDER BY o.id ASC
+    """).fetchall()
+
+    kds_orders = []
+    for order in orders_rows:
+        order_items = conn.execute("""
+            SELECT oi.quantity, i.name as item_name
+            FROM order_items oi
+            JOIN items i ON oi.item_id = i.id
+            WHERE oi.order_id = ?
+        """, (order['id'],)).fetchall()
+
+        kds_orders.append({
+            'id': order['id'],
+            'customer_name': order['customer_name'],
+            'order_date': order['order_date'],
+            'status': order['status'],
+            'order_items': order_items  # Renamed key to avoid Jinja dict method collision
+        })
+
+    conn.close()
+    return render_template('orders/kds.html', orders=kds_orders)

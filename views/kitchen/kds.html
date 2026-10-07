@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>🍳 Kitchen Display System (KDS)</h2>
+        <span class="badge bg-danger fs-6">Live Kitchen Queue</span>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for cat, msg in messages %}
+          <div class="alert alert-{{ cat }} alert-dismissible fade show" role="alert">
+            {{ msg }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <div class="row g-4">
+        {% if orders %}
+            {% for o in orders %}
+                <div class="col-md-4">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                            <strong>Order #{{ o.id }}</strong>
+                            <span class="badge 
+                                {% if o.status == 'PENDING' %}bg-secondary
+                                {% elif o.status == 'SENT TO KITCHEN' %}bg-info text-dark
+                                {% elif o.status == 'PREPARING' %}bg-warning text-dark
+                                {% elif o.status == 'READY' %}bg-primary
+                                {% elif o.status == 'COMPLETED' %}bg-success
+                                {% endif %}">
+                                {{ o.status }}
+                            </span>
+                        </div>
+                        <div class="card-body">
+                            <p class="mb-1"><strong>Customer:</strong> {{ o.customer_name or 'Walk-in' }}</p>
+                            <p class="mb-3 text-muted small"><strong>Time:</strong> {{ o.order_date }}</p>
+                            
+                            <hr>
+
+                            <!-- Status Workflow Buttons -->
+                            <form action="{{ url_for('kitchen.update_status', order_id=o.id) }}" method="POST" class="d-grid gap-2">
+                                {% if o.status in ['PENDING', 'SENT TO KITCHEN'] %}
+                                    <input type="hidden" name="status" value="PREPARING">
+                                    <button type="submit" class="btn btn-warning fw-bold text-dark">🔥 Start Preparing</button>
+                                {% elif o.status == 'PREPARING' %}
+                                    <input type="hidden" name="status" value="READY">
+                                    <button type="submit" class="btn btn-primary fw-bold">🔔 Mark Ready</button>
+                                {% elif o.status == 'READY' %}
+                                    <input type="hidden" name="status" value="COMPLETED">
+                                    <button type="submit" class="btn btn-success fw-bold">✅ Mark Completed</button>
+                                {% else %}
+                                    <input type="hidden" name="status" value="PAID">
+                                    <button type="submit" class="btn btn-dark fw-bold">💵 Close / Paid</button>
+                                {% endif %}
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="col-12 text-center text-muted py-5">
+                <h4>No active kitchen orders in queue.</h4>
+                <p class="mb-0">Orders submitted from the POS Cart will appear here automatically.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

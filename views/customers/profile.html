@@ -1,76 +1,93 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Customer Profile</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body class="bg-light">
-    <div class="container mt-5">
-        <div class="mb-3">
-            <a href="{{ url_for('customer.index') }}" class="btn btn-outline-secondary">&larr; Back to Customer Directory</a>
+{% extends 'base.html' %}
+
+{% block content %}
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4 shadow-sm">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="#">🍽️ Restaurant Admin</a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="{{ url_for('customer.index') }}">Customers</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container py-2">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="fw-bold m-0">📜 Customer Profile</h2>
+            <a href="{{ url_for('customer.index') }}" class="btn btn-outline-secondary">← Back to Directory</a>
         </div>
 
-        <!-- Customer Details -->
-        <div class="card shadow-sm mb-4">
-            <div class="card-header bg-primary text-white">
-                <h4 class="mb-0">Customer Profile</h4>
+        <!-- Customer Profile Card -->
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-primary text-white py-3">
+                <h5 class="mb-0 fw-bold">Customer Details</h5>
             </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-3"><strong>Customer ID:</strong> #{{ customer['id'] }}</div>
-                    <div class="col-md-3"><strong>Name:</strong> {{ customer['name'] }}</div>
-                    <div class="col-md-3"><strong>Contact:</strong> {{ customer['contact'] }}</div>
-                    <div class="col-md-3"><strong>Email:</strong> {{ customer['email'] }}</div>
+            <div class="card-body p-4">
+                <div class="row align-items-center">
+                    <div class="col-md-4 mb-3 mb-md-0">
+                        <small class="text-muted d-block text-uppercase fw-semibold">Full Name</small>
+                        <span class="fw-bold fs-5 text-dark">{{ customer.name }}</span>
+                    </div>
+                    <div class="col-md-4 mb-3 mb-md-0">
+                        <small class="text-muted d-block text-uppercase fw-semibold">Email Address</small>
+                        <span class="fw-semibold fs-6 text-dark">{{ customer.email or 'N/A' }}</span>
+                    </div>
+                    <div class="col-md-4">
+                        <small class="text-muted d-block text-uppercase fw-semibold">Phone Number</small>
+                        <span class="fw-semibold fs-6 text-dark">{{ customer.phone or 'N/A' }}</span>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- Order History -->
-        <div class="card shadow-sm">
-            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Order History</h5>
-                <span class="badge bg-light text-dark">{{ orders|length }} Orders Total</span>
+        <!-- Customer Order History Card -->
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-dark text-white py-3 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 fw-bold">Order History</h5>
+                <span class="badge bg-secondary">{{ orders|length }} Orders Placed</span>
             </div>
             <div class="card-body p-0">
-                <table class="table table-hover mb-0">
-                    <thead class="table-secondary">
-                        <tr>
-                            <th>Order ID</th>
-                            <th>Order Date</th>
-                            <th>Total Amount</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% if orders %}
-                            {% for order in orders %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
                             <tr>
-                                <td>#{{ order['id'] }}</td>
-                                <td>{{ order['order_date'] }}</td>
-                                <td>${{ "%.2f"|format(order['total_amount']) }}</td>
-                                <td>
-                                    {% if order['status'] == 'Completed' %}
-                                        <span class="badge bg-success">Completed</span>
-                                    {% elif order['status'] == 'Pending' %}
-                                        <span class="badge bg-warning text-dark">Pending</span>
-                                    {% else %}
-                                        <span class="badge bg-secondary">{{ order['status'] }}</span>
-                                    {% endif %}
-                                </td>
+                                <th class="ps-3">Order ID</th>
+                                <th>Order Date</th>
+                                <th>Total Amount</th>
+                                <th>Status</th>
                             </tr>
-                            {% endfor %}
-                        {% else %}
-                            <tr>
-                                <td colspan="4" class="text-center text-muted py-4">No order history found for this customer.</td>
-                            </tr>
-                        {% endif %}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            {% if orders %}
+                                {% for order in orders %}
+                                    <tr>
+                                        <td class="ps-3 fw-bold">#{{ order.id }}</td>
+                                        <td>{{ order.order_date or 'N/A' }}</td>
+                                        <td class="fw-bold text-success">₱{{ "%.2f"|format(order.total_amount or 0.0) }}</td>
+                                        <td>
+                                            {% if order.status == 'Completed' %}
+                                                <span class="badge bg-success">Completed</span>
+                                            {% elif order.status == 'Pending' %}
+                                                <span class="badge bg-warning text-dark">Pending</span>
+                                            {% elif order.status == 'Preparing' %}
+                                                <span class="badge bg-info text-dark">Preparing</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">{{ order.status or 'N/A' }}</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted py-5">
+                                        <p class="mb-0">No past orders found for this customer.</p>
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+{% endblock %}

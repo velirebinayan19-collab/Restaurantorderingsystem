@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Restaurant POS{% endblock %}</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <!-- Global Navigation Bar connecting all Labs 1–12 -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4 shadow-sm">
+        <div class="container-fluid px-4">
+            <a class="navbar-brand fw-bold" href="{{ url_for('customer.index') if 'customer.index' in url_for.__globals__['current_app'].view_functions else '/customers' }}">🍽️ Restaurant POS</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <!-- Lab 3: Categories -->
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('category.index') if 'category.index' in url_for.__globals__['current_app'].view_functions else '/categories' }}">📁 Categories</a>
+                    </li>
+
+                    <!-- Lab 4: Menu Items -->
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('item.index') if 'item.index' in url_for.__globals__['current_app'].view_functions else '/items' }}">🍔 Menu Items</a>
+                    </li>
+
+                    <!-- Lab 6-7: Customers & History -->
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('customer.index') if 'customer.index' in url_for.__globals__['current_app'].view_functions else '/customers' }}">👥 Customers</a>
+                    </li>
+
+                    <!-- Lab 8-10: Ordering Menu & Cart (Updated to match order.view_cart route /orders/cart) -->
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('order.view_cart') if 'order.view_cart' in url_for.__globals__['current_app'].view_functions else '/orders/cart' }}">🛒 Place Order</a>
+                    </li>
+
+                    <!-- Lab 11-12: KDS & Order Status (Updated to match order.kitchen_display route /orders/kds) -->
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('order.kitchen_display') if 'order.kitchen_display' in url_for.__globals__['current_app'].view_functions else '/orders/kds' }}">🍳 Kitchen KDS</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Dynamic Content Container -->
+    <main class="container-fluid px-4">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Bootstrap 5 JS Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

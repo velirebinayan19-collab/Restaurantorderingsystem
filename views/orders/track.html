@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Live Customer Order Tracker</h2>
+        <a href="{{ url_for('order.view_cart') }}" class="btn btn-primary">+ New Order</a>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for cat, msg in messages %}
+          <div class="alert alert-{{ cat }} alert-dismissible fade show" role="alert">
+            {{ msg }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Order #</th>
+                        <th>Customer</th>
+                        <th>Date & Time</th>
+                        <th>Total Amount</th>
+                        <th>Current Status</th>
+                        <th>Update Workflow Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if orders %}
+                        {% for o in orders %}
+                            <tr>
+                                <td><strong>#{{ o.id }}</strong></td>
+                                <td>{{ o.customer_name }}[cite: 6]</td>
+                                <td>{{ o.order_date }}[cite: 6]</td>
+                                <td class="fw-bold text-success">₱{{ "%.2f"|format(o.total_amount) }}[cite: 6]</td>
+                                <td>
+                                    {% if o.status == 'PENDING' %}
+                                        <span class="badge bg-secondary">PENDING</span>
+                                    {% elif o.status == 'SENT TO KITCHEN' %}
+                                        <span class="badge bg-info text-dark">SENT TO KITCHEN</span>
+                                    {% elif o.status == 'PREPARING' %}
+                                        <span class="badge bg-warning text-dark">PREPARING</span>
+                                    {% elif o.status == 'READY' %}
+                                        <span class="badge bg-primary">READY</span>
+                                    {% elif o.status == 'COMPLETED' %}
+                                        <span class="badge bg-success">COMPLETED</span>
+                                    {% elif o.status == 'PAID' %}
+                                        <span class="badge bg-dark">PAID</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <form action="{{ url_for('order.update_status', order_id=o.id) }}" method="POST" class="d-flex gap-2">
+                                        <select name="status" class="form-select form-select-sm" style="width: 170px;">
+                                            <option value="PENDING" {% if o.status == 'PENDING' %}selected{% endif %}>PENDING</option>
+                                            <option value="SENT TO KITCHEN" {% if o.status == 'SENT TO KITCHEN' %}selected{% endif %}>SENT TO KITCHEN</option>
+                                            <option value="PREPARING" {% if o.status == 'PREPARING' %}selected{% endif %}>PREPARING</option>
+                                            <option value="READY" {% if o.status == 'READY' %}selected{% endif %}>READY</option>
+                                            <option value="COMPLETED" {% if o.status == 'COMPLETED' %}selected{% endif %}>COMPLETED</option>
+                                            <option value="PAID" {% if o.status == 'PAID' %}selected{% endif %}>PAID</option>
+                                        </select>
+                                        <button type="submit" class="btn btn-sm btn-outline-secondary">Update</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-4">No order records found in database.[cite: 6]</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

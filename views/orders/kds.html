@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+
+{% block head %}
+    <style>
+        .kds-card { border-left: 5px solid #0d6efd; }
+        .status-PENDING { border-left-color: #6c757d; }
+        .status-SENT-TO-KITCHEN { border-left-color: #0dcaf0; }
+        .status-PREPARING { border-left-color: #ffc107; }
+        .status-READY { border-left-color: #198754; }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <nav class="navbar navbar-expand-lg navbar-dark bg-black mb-4 border-bottom border-secondary">
+        <div class="container-fluid px-4">
+            <a class="navbar-brand fw-bold text-warning" href="#">👨‍🍳 Kitchen Display System (KDS)</a>
+            <div class="navbar-nav ms-auto gap-3">
+                <a class="btn btn-outline-light btn-sm" href="{{ url_for('order.view_cart') }}">POS Cart</a>
+                <a class="btn btn-outline-warning btn-sm" href="{{ url_for('order.track_orders') }}">Order Tracker</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid px-4 mb-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h3 class="fw-bold text-white">Active Kitchen Queue</h3>
+            <span class="badge bg-secondary fs-6">{{ orders|length }} Orders Active</span>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for cat, msg in messages %}
+              <div class="alert alert-{{ cat }} alert-dismissible fade show" role="alert">
+                {{ msg }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <div class="row g-4">
+            {% if orders %}
+                {% for o in orders %}
+                    <div class="col-12 col-md-6 col-lg-4 col-xl-3">
+                        <div class="card bg-secondary text-white h-100 shadow kds-card status-{{ o.status|replace(' ', '-') }}">
+                            <div class="card-header bg-dark d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0 fw-bold text-warning">ORDER #{{ o.id }}</h5>
+                                <span class="badge 
+                                    {% if o.status == 'PENDING' %}bg-secondary
+                                    {% elif o.status == 'SENT TO KITCHEN' %}bg-info text-dark
+                                    {% elif o.status == 'PREPARING' %}bg-warning text-dark
+                                    {% elif o.status == 'READY' %}bg-success
+                                    {% endif %}">
+                                    {{ o.status }}
+                                </span>
+                            </div>
+                            <div class="card-body">
+                                <h6 class="card-title fw-bold">{{ o.customer_name }}</h6>
+                                <p class="card-subtitle text-light small mb-3">🕒 {{ o.order_date }}</p>
+
+                                <hr class="border-secondary">
+
+                                <ul class="list-group list-group-flush rounded mb-3">
+                                    {% for item in o.order_items %}
+                                        <li class="list-group-item bg-dark text-white d-flex justify-content-between align-items-center py-2">
+                                            <span>{{ item.item_name }}</span>
+                                            <span class="badge bg-primary rounded-pill fs-6">{{ item.quantity }}×</span>
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            <div class="card-footer bg-dark">
+                                <form action="{{ url_for('order.update_status', order_id=o.id) }}" method="POST" class="d-flex gap-2">
+                                    <select name="status" class="form-select form-select-sm bg-secondary text-white border-0" onchange="this.form.submit()">
+                                        <option value="PENDING" {% if o.status == 'PENDING' %}selected{% endif %}>PENDING</option>
+                                        <option value="SENT TO KITCHEN" {% if o.status == 'SENT TO KITCHEN' %}selected{% endif %}>SENT TO KITCHEN</option>
+                                        <option value="PREPARING" {% if o.status == 'PREPARING' %}selected{% endif %}>PREPARING</option>
+                                        <option value="READY" {% if o.status == 'READY' %}selected{% endif %}>READY</option>
+                                        <option value="COMPLETED" {% if o.status == 'COMPLETED' %}selected{% endif %}>COMPLETED</option>
+                                    </select>
+                                    <button type="submit" class="btn btn-sm btn-warning">Update</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="col-12 text-center py-5">
+                    <h4 class="text-muted">No active kitchen orders at the moment.</h4>
+                    <p class="text-secondary">New orders placed at checkout will appear here automatically.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        // Auto-refresh KDS queue every 15 seconds to pull new orders
+        setTimeout(function() {
+            window.location.reload();
+        }, 15000);
+    </script>
+{% endblock %}

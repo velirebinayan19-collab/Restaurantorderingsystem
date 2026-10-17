@@ -118,7 +118,7 @@ def clear_cart():
     flash('Cart cleared.', 'info')
     return redirect(url_for('order.view_cart'))
 
-# Lab 11: Checkout & Persistence
+# Checkout & Order Total Computation (Labs 11 & 15)
 @order_bp.route('/cart/checkout', methods=['POST'])
 def checkout():
     customer_id = request.form.get('customer_id')
@@ -152,6 +152,7 @@ def checkout():
                 'quantity': cart_item['quantity']
             })
 
+        # Lab 15: Grand Total calculation (sum of quantity * price)
         total_amount = sum(i['price'] * i['quantity'] for i in validated_items)
         initial_status = 'PENDING'
 
@@ -172,7 +173,7 @@ def checkout():
 
         conn.commit()
         session.pop('cart', None)
-        flash(f'Order #{order_id} placed successfully! Initial Status: {initial_status}', 'success')
+        flash(f'Order #{order_id} placed successfully! Total: ₱{total_amount:.2f}', 'success')
         return redirect(url_for('order.track_orders'))
 
     except Exception as e:
@@ -182,7 +183,7 @@ def checkout():
     finally:
         conn.close()
 
-# Lab 11: Order Tracker
+# Order Tracker
 @order_bp.route('/track', methods=['GET'])
 def track_orders():
     conn = get_db_connection()
@@ -212,7 +213,7 @@ def update_status(order_id):
         
     return redirect(request.referrer or url_for('order.track_orders'))
 
-# Laboratory 12: Kitchen Display System (KDS) Route
+# Kitchen Display System (KDS) Route
 @order_bp.route('/kds', methods=['GET'])
 def kitchen_display():
     conn = get_db_connection()
@@ -239,7 +240,7 @@ def kitchen_display():
             'customer_name': order['customer_name'],
             'order_date': order['order_date'],
             'status': order['status'],
-            'order_items': order_items  # Renamed key to avoid Jinja dict method collision
+            'order_items': order_items
         })
 
     conn.close()

@@ -29,7 +29,7 @@
                         <th>Total Amount</th>
                         <th>Current Status</th>
                         <th>Update Workflow Status</th>
-                        <th>Payment (Lab 17)</th> <!-- Added Column -->
+                        <th>Payment</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -74,11 +74,11 @@
                                         {% if o.status == 'PAID' %}Paid Details{% else %}Process Pay{% endif %}
                                     </button>
 
-                                    <!-- Payment Modal for each order -->
+                                    <!-- Unique Payment Modal for each order -->
                                     <div class="modal fade" id="payModal{{ o.id }}" tabindex="-1" aria-hidden="true">
                                         <div class="modal-dialog">
                                             <div class="modal-content">
-                                                <form action="{{ url_for('order.process_payment', order_id=o.id) }}" method="POST">
+                                                <form action="{{ url_for('order.process_payment', order_id=o.id) }}" method="POST" id="paymentForm-{{ o.id }}" data-total="{{ o.total_amount }}">
                                                     <div class="modal-header">
                                                         <h5 class="modal-title">Payment for Order #{{ o.id }}</h5>
                                                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -90,20 +90,22 @@
                                                         </div>
                                                         <div class="mb-3">
                                                             <label class="form-label fw-bold">Payment Method:</label>
-                                                            <select name="payment_method" class="form-select" required>
+                                                            <select name="payment_method" class="form-select" id="paymentMethodSelect-{{ o.id }}" onchange="toggleAmountPaid('{{ o.id }}')" required>
                                                                 <option value="Cash">Cash</option>
                                                                 <option value="Card">Card</option>
                                                                 <option value="Bank/Electronic">Bank / Electronic Payment</option>
                                                             </select>
                                                         </div>
-                                                        <div class="mb-3">
+                                                        <!-- Dynamic Amount Paid Field (Only shows/required for Cash) -->
+                                                        <div class="mb-3" id="amountPaidContainer-{{ o.id }}">
                                                             <label class="form-label fw-bold">Amount Paid (₱):</label>
-                                                            <input type="number" step="0.01" name="amount_paid" class="form-control" placeholder="e.g. 500.00" required>
+                                                            <input type="number" step="0.01" name="amount_paid" id="amountPaidInput-{{ o.id }}" class="form-control" placeholder="e.g. 500.00">
+                                                            <small class="text-muted">Required for cash payments to calculate change.</small>
                                                         </div>
                                                     </div>
                                                     <div class="modal-footer">
                                                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                                                        <button type="submit" class="btn btn-success">Confirm Payment</button>
+                                                        <button type="submit" class="btn btn-success">Confirm Payment & Print Receipt</button>
                                                     </div>
                                                 </form>
                                             </div>
@@ -122,4 +124,38 @@
         </div>
     </div>
 </div>
+
+<!-- Dynamic JavaScript to handle conditional Cash input -->
+<script>
+function toggleAmountPaid(orderId) {
+    const form = document.getElementById(`paymentForm-${orderId}`);
+    const methodSelect = document.getElementById(`paymentMethodSelect-${orderId}`);
+    const container = document.getElementById(`amountPaidContainer-${orderId}`);
+    const input = document.getElementById(`amountPaidInput-${orderId}`);
+    
+    if (!form || !methodSelect) return;
+    
+    const totalAmount = parseFloat(form.dataset.total);
+
+    if (methodSelect.value === 'Cash') {
+        container.style.display = 'block';
+        input.required = true;
+        input.value = ''; // Let cashier type cash amount
+    } else {
+        container.style.display = 'none';
+        input.required = false;
+        input.value = totalAmount; // Automatically assign exact total for Card/Bank
+    }
+}
+
+// Ensure proper initial state when each modal opens
+document.addEventListener('shown.bs.modal', function (event) {
+    const modal = event.target;
+    const selectElem = modal.querySelector('select[id^="paymentMethodSelect-"]');
+    if (selectElem) {
+        const orderId = selectElem.id.split('-')[1];
+        toggleAmountPaid(orderId);
+    }
+});
+</script>
 {% endblock %}

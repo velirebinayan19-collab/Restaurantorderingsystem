@@ -236,7 +236,7 @@ def update_status(order_id):
         flash('Invalid status selected.', 'danger')
         
     return redirect(request.referrer or url_for('order.track_orders'))
-# Lab 17: Payment Processing Route
+## Lab 17: Payment Processing Route
 @order_bp.route('/pay/<int:order_id>', methods=['GET', 'POST'])
 def process_payment(order_id):
     conn = get_db_connection()
@@ -261,11 +261,21 @@ def process_payment(order_id):
             conn.close()
             return redirect(url_for('order.process_payment', order_id=order_id))
             
+        # Lab 17 Change Formula: Change = Amount Paid - Amount Due
         change = amount_paid - amount_due
         balance = 0.0  # Fully paid
+        status = 'PAID'
         
-        # Update order status to PAID
-        conn.execute(
+        cursor = conn.cursor()
+        # 1. Insert record into the Lab 17 payments table
+        cursor.execute(
+            """INSERT INTO payments (order_id, amount_due, amount_paid, payment_method, change, balance, status)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (order_id, amount_due, amount_paid, payment_method, change, balance, status)
+        )
+        
+        # 2. Update order status to PAID
+        cursor.execute(
             "UPDATE orders SET status = ? WHERE id = ?",
             ('PAID', order_id)
         )

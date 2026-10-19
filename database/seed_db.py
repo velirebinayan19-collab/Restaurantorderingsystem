@@ -35,31 +35,13 @@ def seed_db():
     cursor.execute("SELECT COUNT(*) FROM customers")
     if cursor.fetchone()[0] == 0:
         cursor.execute('''
-            INSERT INTO customers (name, contact, email)
+            INSERT INTO customers (name, phone, email)
             VALUES ('Velire Binayan', '09123456789', 'velire@email.com')
         ''')
 
-    # 4. Orders
-    cursor.execute("SELECT id FROM customers LIMIT 1")
-    customer = cursor.fetchone()
-
-    if customer:
-        customer_id = customer[0]
-        cursor.execute("SELECT COUNT(*) FROM orders WHERE customer_id = ?", (customer_id,))
-        if cursor.fetchone()[0] == 0:
-            sample_orders = [
-                (customer_id, '2026-10-01 12:30:00', 37.97, 'Completed'),
-                (customer_id, '2026-10-05 18:45:00', 19.98, 'Pending'),
-                (customer_id, '2026-10-06 11:15:00', 45.50, 'Completed')
-            ]
-            cursor.executemany('''
-                INSERT INTO orders (customer_id, order_date, total_amount, status)
-                VALUES (?, ?, ?, ?)
-            ''', sample_orders)
-
     conn.commit()
     conn.close()
-    print("Database seeded with Categories, Items, Customers, and Orders successfully!")
+    print("Database seeded with Categories, Items, and Customers successfully!")
 
 if __name__ == '__main__':
     seed_db()

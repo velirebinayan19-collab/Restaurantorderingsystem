@@ -12,7 +12,7 @@ def get_cart():
 def index():
     return redirect(url_for('order.view_cart'))
 
-# View Cart
+# View Cart & Bill Breakdown (Labs 11, 15 & 16 Combined)
 @order_bp.route('/cart', methods=['GET'])
 def view_cart():
     conn = get_db_connection()
@@ -27,8 +27,18 @@ def view_cart():
     conn.close()
 
     cart = get_cart()
-    subtotal = sum(item['price'] * item['quantity'] for item in cart.values())
-    total_quantity = sum(item['quantity'] for item in cart.values())
+    
+    # Lab 15: Subtotal and Total Quantity Calculations
+    subtotal = sum(float(item['price']) * int(item['quantity']) for item in cart.values())
+    total_quantity = sum(int(item['quantity']) for item in cart.values())
+
+    # Lab 16: Discounts & Charges Calculations
+    discount_percent = float(request.args.get('discount', 10.0))  # Default 10% discount
+    discount_amount = subtotal * (discount_percent / 100.0)
+    other_charges = 0.00
+    
+    # Formula: Final Total = Subtotal - Discount + Other Charges
+    final_total = subtotal - discount_amount + other_charges
 
     return render_template(
         'orders/cart.html',
@@ -38,7 +48,11 @@ def view_cart():
         selected_category_id=selected_cat_id,
         cart=cart.values(),
         subtotal=subtotal,
-        total_quantity=total_quantity
+        total_quantity=total_quantity,
+        discount_percent=discount_percent,
+        discount_amount=discount_amount,
+        other_charges=other_charges,
+        final_total=final_total
     )
 
 # Add Item to Cart
@@ -118,7 +132,7 @@ def clear_cart():
     flash('Cart cleared.', 'info')
     return redirect(url_for('order.view_cart'))
 
-# Checkout & Order Total Computation (Labs 11 & 15)
+# Checkout & Order Total Computation (Labs 11, 15 & 16)
 @order_bp.route('/cart/checkout', methods=['POST'])
 def checkout():
     customer_id = request.form.get('customer_id')
@@ -149,18 +163,28 @@ def checkout():
             validated_items.append({
                 'id': db_item['id'],
                 'price': float(db_item['price']),
-                'quantity': cart_item['quantity']
+                'quantity': int(cart_item['quantity'])
             })
 
-        # Lab 15: Grand Total calculation (sum of quantity * price)
-        total_amount = sum(i['price'] * i['quantity'] for i in validated_items)
+        # --- LAB 15: Subtotal Computation ---
+        subtotal = sum(i['price'] * i['quantity'] for i in validated_items)
+
+        # --- LAB 16: Discount and Additional Charges Computation ---
+        discount_rate = float(request.form.get('discount_rate', 0.10))  # 10% discount rate
+        discount_amount = subtotal * discount_rate
+        other_charges = 0.00
+        
+        # Final Total = Subtotal - Discount + Other Charges
+        final_total = subtotal - discount_amount + other_charges
+
         initial_status = 'PENDING'
 
         cursor = conn.cursor()
+        # Save the discounted final_total into total_amount
         cursor.execute(
             """INSERT INTO orders (customer_id, order_date, total_amount, status) 
                VALUES (?, datetime('now', 'localtime'), ?, ?)""",
-            (customer_id, total_amount, initial_status)
+            (customer_id, final_total, initial_status)
         )
         order_id = cursor.lastrowid
 
@@ -173,7 +197,7 @@ def checkout():
 
         conn.commit()
         session.pop('cart', None)
-        flash(f'Order #{order_id} placed successfully! Total: ₱{total_amount:.2f}', 'success')
+        flash(f'Order #{order_id} placed successfully! Subtotal: ₱{subtotal:.2f}, Discount: -₱{discount_amount:.2f}, Final Total: ₱{final_total:.2f}', 'success')
         return redirect(url_for('order.track_orders'))
 
     except Exception as e:
@@ -212,7 +236,47 @@ def update_status(order_id):
         flash('Invalid status selected.', 'danger')
         
     return redirect(request.referrer or url_for('order.track_orders'))
-
+# Lab 17: Payment Processing Route
+@order_bp.route('/pay/<int:order_id>', methods=['GET', 'POST'])
+def process_payment(order_id):
+    conn = get_db_connection()
+    order = conn.execute("SELECT * FROM orders WHERE id = ?", (order_id,)).fetchone()
+    
+    if not order:
+        conn.close()
+        flash('Order not found.', 'danger')
+        return redirect(url_for('order.track_orders'))
+        
+    if request.method == 'POST':
+        payment_method = request.form.get('payment_method')
+        try:
+            amount_paid = float(request.form.get('amount_paid', 0))
+        except ValueError:
+            amount_paid = 0.0
+            
+        amount_due = float(order['total_amount'])
+        
+        if amount_paid < amount_due:
+            flash(f'Insufficient payment. Amount due is ₱{amount_due:.2f}', 'danger')
+            conn.close()
+            return redirect(url_for('order.process_payment', order_id=order_id))
+            
+        change = amount_paid - amount_due
+        balance = 0.0  # Fully paid
+        
+        # Update order status to PAID
+        conn.execute(
+            "UPDATE orders SET status = ? WHERE id = ?",
+            ('PAID', order_id)
+        )
+        conn.commit()
+        conn.close()
+        
+        flash(f'Payment successful! Method: {payment_method} | Amount Due: ₱{amount_due:.2f} | Paid: ₱{amount_paid:.2f} | Change: ₱{change:.2f}', 'success')
+        return redirect(url_for('order.track_orders'))
+        
+    conn.close()
+    return render_template('orders/pay.html', order=order)
 # Kitchen Display System (KDS) Route
 @order_bp.route('/kds', methods=['GET'])
 def kitchen_display():

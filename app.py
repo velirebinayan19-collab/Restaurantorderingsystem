@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 from flask import Flask, render_template
 from pyngrok import ngrok
 
@@ -30,7 +30,7 @@ print(f"\n * STATIC NGROK URL: {tunnel.public_url}\n")
 
 if __name__ == '__main__':
     app.run(port=5000, debug=True)
-=======
+
 from flask import Flask
 app = Flask(__name__)
 
